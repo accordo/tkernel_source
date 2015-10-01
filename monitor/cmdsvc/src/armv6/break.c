@@ -146,7 +146,7 @@ EXPORT	W	getBreakAtr(UB *name)
 
 	if (name[4] == ' ') {
 		for (i = 0; i < MAX_BPATR; i++) {
-			if (*((UW*)brkAtr[i].name) == *((UW*)name))
+			if (memcmp(brkAtr[i].name, name, sizeof(UW)) == 0)
 				return brkAtr[i].atr;
 		}
 	}
