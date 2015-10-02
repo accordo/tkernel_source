@@ -23,7 +23,7 @@
 
 // SW breakpoint code (BKPT instruction)
 #define	BREAK_ARM	0xE1200070
-#define	BREAK_THUMB	0xBE00
+#define	BREAK_THUMB	0xBE000000
 
 /*
 	breakpoint data
@@ -282,8 +282,8 @@ EXPORT	void	initBreak(void)
 	traceMode = traceStep = stepFlg = 0;
 
         // SW break instruction (undefined instruction)
-	*((UH*)&sbpCode.b[2]) = BREAK_THUMB;
-	*((UW*)&sbpCode.b[4]) = BREAK_ARM;
+	sbpCode.b[0] = BREAK_THUMB;
+	sbpCode.b[1] = BREAK_ARM;
 }
 /*
         release breakpoint temporarily (monitor entry)
