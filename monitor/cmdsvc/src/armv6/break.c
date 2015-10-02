@@ -282,8 +282,8 @@ EXPORT	void	initBreak(void)
 	traceMode = traceStep = stepFlg = 0;
 
         // SW break instruction (undefined instruction)
-	sbpCode.b[0] = BREAK_THUMB;
-	sbpCode.b[1] = BREAK_ARM;
+	sbpCode.w[0] = BREAK_THUMB;
+	sbpCode.w[1] = BREAK_ARM;
 }
 /*
         release breakpoint temporarily (monitor entry)
