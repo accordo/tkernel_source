@@ -1,4 +1,10 @@
 /*
+ * Copyright (c) 2015 Du Huanpeng <u74147@gmail.com>
+ * origin: monitor/cmdsvc/src/string.c
+ * slow and simple libray rouines.
+ * FIXME: not tested.
+ */
+/*
  *----------------------------------------------------------------------
  *    T-Kernel 2.0 Software Package
  *
@@ -20,58 +26,16 @@
 
 #include <tmonitor.h>
 
-/* memory access size */
-#define	MASZ	(sizeof(unsigned long))
-#define	MAMSK	(MASZ - 1)
-
-/* memory access pointer */
-typedef	union {
-	unsigned char	*cp;
-	unsigned long	*lp;
-	unsigned long	lv;
-} MPTR;
 
 /*
  * memset : fill memory area
  */
 void* memset( void *s, int c, size_t n )
 {
-	MPTR		m;
-	size_t		cnt;
-	unsigned long	val;
-
-	m.cp = (unsigned char *)s;
-	val = (unsigned char)c;
-
-	cnt = m.lv & MAMSK;
-	if ( cnt > 0 ) {
-		/* Not aligned in WASZ bytes */
-		if ( n < MASZ * 2) {
-			cnt = n;
-		} else {
-			cnt = MASZ - cnt;
-		}
-		/* Fill preceding bytes to align */
-		n -= cnt;
-		do {
-			*m.cp++ = (unsigned char)val;
-		} while ( --cnt > 0 );
-	}
-
-	/* Fill in WASZ bytes unit */
-	if ( n >= MASZ ) {
-		cnt = n / MASZ;
-		n &= MAMSK;
-		val |= val << 8;
-		val |= val << 16;
-		do {
-			*m.lp++ = val;
-		} while ( --cnt > 0 );
-	}
-
-	/* Fill trailing bytes */
-	while ( n-- > 0 ) {
-		*m.cp++ = (unsigned char)val;
+	int i;
+	char *mem = s;
+	for(i=0; i<n; i++) {
+		mem[i] = c;
 	}
 	return s;
 }
@@ -81,15 +45,15 @@ void* memset( void *s, int c, size_t n )
  */
 int memcmp( const void *s1, const void *s2, size_t n )
 {
-	int	result;
 	const unsigned char	*p1 = s1;
 	const unsigned char	*p2 = s2;
-
-	while ( n-- > 0 ) {
-		result = *p1++ - *p2++;
-		if ( result != 0 ) return result;
+	int rc;
+	while( *p1 == *p2 && n--) {
+		p1++;
+		p2++;
 	}
-	return 0;
+	rc = *p1 - *p2;
+	return rc;
 }
 
 /*
@@ -97,40 +61,11 @@ int memcmp( const void *s1, const void *s2, size_t n )
  */
 void* memcpy( void *dst, const void *src, size_t n )
 {
-	MPTR	s, d;
-	size_t	cnt;
-
-	d.cp = (unsigned char *)dst;
-	s.cp = (unsigned char *)src;
-
-	if ( ( (s.lv | d.lv) & MAMSK ) != 0 ) {
-		/* Not aligned in WASZ bytes */
-		if ( ( (s.lv ^ d.lv) & MAMSK ) != 0 || n < MASZ * 2) {
-			/* Full copy in a byte unit */
-			cnt = n;
-		} else {
-			/* Copy preceding bytes to align */
-			cnt = MASZ - (s.lv & MAMSK);
-		}
-		/* Copy in a byte unit */
-		n -= cnt;
-		do {
-			*d.cp++ = *s.cp++;
-		} while ( --cnt > 0 );
-	}
-
-	/* Copy in WASZ bytes unit */
-	if ( n >= MASZ ) {
-		cnt = n / MASZ;
-		n &= MAMSK;
-		do {
-			*d.lp++ = *s.lp++;
-		} while ( --cnt > 0 );
-	}
-
-	/* Copy trailing bytes */
-	while ( n-- > 0 ) {
-		*d.cp++ = *s.cp++;
+	int i;
+	char *to = dst;
+	const char *from = src;
+	for(i=0; i<n; i++) {
+		to[i] = from[i];
 	}
 	return dst;
 }
@@ -140,59 +75,21 @@ void* memcpy( void *dst, const void *src, size_t n )
  */
 void* memmove( void *dst, const void *src, size_t n )
 {
-	MPTR	s, d;
-	size_t	cnt;
-
-	d.cp = (unsigned char *)dst;
-	s.cp = (unsigned char *)src;
-
-	if ( d.cp < s.cp ) {	/* Copy forward */
-		if ( ( (s.lv | d.lv) & MAMSK ) != 0 ) {
-			if ( ( (s.lv ^ d.lv) & MAMSK ) != 0 || n < MASZ * 2 ) {
-				cnt = n;
-			} else {
-				cnt = MASZ - (s.lv & MAMSK);
-			}
-			n -= cnt;
-			do {
-				*d.cp++ = *s.cp++;
-			} while ( --cnt > 0 );
-		}
-		if ( n >= MASZ ) {
-			cnt = n / MASZ;
-			n &= MAMSK;
-			do {
-				*d.lp++ = *s.lp++;
-			} while ( --cnt > 0 );
-		}
-		while ( n-- > 0 ) {
-			*d.cp++ = *s.cp++;
-		}
-	} else {		/* Copy backward */
-		s.cp += n;
-		d.cp += n;
-		if ( ( (s.lv | d.lv) & MAMSK ) != 0 ) {
-			if ( ( (s.lv ^ d.lv) & MAMSK ) != 0 || n < MASZ * 2 ) {
-				cnt = n;
-			} else {
-				cnt = s.lv & MAMSK;
-			}
-			n -= cnt;
-			do {
-				*--d.cp = *--s.cp;
-			} while ( --cnt > 0 );
-		}
-		if ( n >= MASZ ) {
-			cnt = n / MASZ;
-			n &= MAMSK;
-			do {
-				*--d.lp = *--s.lp;
-			} while ( --cnt > 0 );
-		}
-		while ( n-- > 0 ) {
-			*--d.cp = *--s.cp;
+	int i;
+	char *to = dst;
+	const char *from = src;
+	if(src < dst) {
+		for(i=0; i<n; i++){
+			to[i] = from[i];
 		}
 	}
+	else if(src > dst) {
+		i = n;
+		while(i--) {
+			to[i] = from[i];
+		}
+	}
+	/* do nothing if src == dst. */
 	return dst;
 }
 
@@ -201,10 +98,9 @@ void* memmove( void *dst, const void *src, size_t n )
  */
 size_t strlen( const char *s )
 {
-	char	*cp = (char *)s;
-
-	while ( *cp != '\0' ) cp++;
-	return (size_t)(cp - s);
+	size_t rc = 0;
+	while(s[rc++]);
+	return rc;
 }
 
 /*
@@ -212,10 +108,13 @@ size_t strlen( const char *s )
  */
 int strcmp( const char *s1, const char *s2 )
 {
-	for ( ; *s1 == *s2; s1++, s2++ ) {
-		if ( *s1 == '\0' ) return 0;
+	int rc;
+	while(*s1 && *s1 == *s2) {
+		s1++;
+		s2++;
 	}
-	return (unsigned char)*s1 - (unsigned char)*s2;
+	rc = *s1 - *s2;
+	return rc;
 }
 
 /*
@@ -223,14 +122,14 @@ int strcmp( const char *s1, const char *s2 )
  */
 int strncmp( const char *s1, const char *s2, size_t n )
 {
-	int	result;
-
-	while ( n-- > 0 ) {
-		result = (unsigned char)*s1 - (unsigned char)*s2++;
-		if ( result != 0 ) return result;
-		if ( *s1++ == '\0' ) break;
-	}
-	return 0;
+    int rc;
+    while(*s1 && *s1 == *s2 && n) {
+	s1++;
+	s2++;
+	n--;
+    };
+    rc = *s1 - *s2;
+    return rc;
 }
 
 /*
@@ -238,9 +137,10 @@ int strncmp( const char *s1, const char *s2, size_t n )
  */
 char* strcpy( char *dst, const char *src )
 {
-	char	*dp = dst;
-
-	while ( (*dp++ = *src++) != '\0' );
+	while((*dst = *src)) {
+		dst++;
+		src++;
+	}
 	return dst;
 }
 
@@ -249,13 +149,10 @@ char* strcpy( char *dst, const char *src )
  */
 char* strncpy( char *dst, const char *src, size_t n )
 {
-	char	*dp = dst;
-
-	while ( n-- > 0 ) {
-		if ( (*dp++ = *src++) == '\0' ) {
-			while ( n-- > 0 ) *dp++ = '\0';
-			break;
-		}
+	while((*dst = *src) && n) {
+		dst++;
+		src++;
+		n--;
 	}
 	return dst;
 }
